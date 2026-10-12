@@ -82,7 +82,7 @@ function render(){
   const icon=by("div","event-icon",e.type==="cz"?"CZ":"AT");
   const content=by("div","event-content");
   const title= e.type==="cz"?
-    "CZ #"+map.get(e.id)+" / "+number(e.games)+"G":
+    "CZ #"+map.get(e.id)+" / 実"+number(e.games)+"G"+(e.lcdGames===null?"":"・液晶"+number(e.lcdGames)+"G"):
     "AT終了 / "+number(e.coins)+"枚";
   content.append(by("div","event-title",title));
   const clock=new Date(e.at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"});
@@ -132,8 +132,10 @@ document.querySelectorAll(".outcome").forEach(btn=>
 $("czForm").addEventListener("submit",ev=>{
  ev.preventDefault();
  try{
-  commit(addCZ(record,integerInput("czGames"),$("czOutcome").value));
-  $("czGames").value="";
+  const lcdRaw=$("lcdGames").value.trim();
+  const lcdGames=lcdRaw===""?null:integerInput("lcdGames");
+  commit(addCZ(record,integerInput("czGames"),$("czOutcome").value,lcdGames));
+  $("czGames").value="";$("lcdGames").value="";
   setOutcome("pending");
   toast("CZを記録しました。");
  }catch(err){toast(err.message);}
