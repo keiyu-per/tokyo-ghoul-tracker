@@ -26,7 +26,7 @@ export function validateSession(value) {
       throw new Error("イベントのID・日時が不正です。");
     seen.add(e.id);
     if (e.type === "cz") {
-      if (!integer(e.games) || !OUTCOMES.includes(e.outcome))
+      if (!integer(e.games) || !(e.lcdGames === undefined || e.lcdGames === null || integer(e.lcdGames)) || !OUTCOMES.includes(e.outcome))
         throw new Error("CZ記録のG数・結果が不正です。");
       czById.set(e.id,e);
     } else if (e.type === "at") {
@@ -41,7 +41,7 @@ export function validateSession(value) {
   }
   return {schemaVersion:1,meta:{date,hall,machine},events:value.events.map(e =>
     e.type === "cz"
-      ? {id:e.id,type:"cz",games:e.games,outcome:e.outcome,at:e.at}
+      ? {id:e.id,type:"cz",games:e.games,lcdGames:e.lcdGames ?? null,outcome:e.outcome,at:e.at}
       : {id:e.id,type:"at",coins:e.coins,sourceCzId:e.sourceCzId,at:e.at}
   )};
 }
@@ -49,9 +49,9 @@ export function validateSession(value) {
 export function withMeta(record, patch) {
   return validateSession({...record,meta:{...record.meta,...patch}});
 }
-export function addCZ(record,games,outcome="pending") {
-  if (!integer(games) || !OUTCOMES.includes(outcome)) throw new Error("CZのG数・結果を確認してください。");
-  return validateSession({...record,events:[...record.events,{id:id("cz"),type:"cz",games,outcome,at:iso()}]});
+export function addCZ(record,games,outcome="pending",lcdGames=null) {
+  if (!integer(games) || !(lcdGames === null || integer(lcdGames)) || !OUTCOMES.includes(outcome)) throw new Error("CZのG数・結果を確認してください。");
+  return validateSession({...record,events:[...record.events,{id:id("cz"),type:"cz",games,lcdGames,outcome,at:iso()}]});
 }
 export function addAT(record,coins) {
   if (!integer(coins)) throw new Error("AT獲得枚数は0以上の整数で入力してください。");
@@ -93,15 +93,22 @@ export function buildAiText(record) {
   const r=validateSession(record), s=summary(r);
   const label={pending:"未確定",hit:"成功",miss:"失敗"};
   const czNumbers = new Map();
-  let czIndex=0;
-  const rows = r.events.map((e,index)=>{
-    if (e.type==="cz") {
-      czNumbers.set(e.id,++czIndex);
-      return `${index+1}. CZ #${czIndex}：当選まで${e.games}通常G / 結果${label[e.outcome]}`;
+  const attached = new Map();
+  let czIndex = 0;
+  for (const e of r.events) {
+    if (e.type === "cz") czNumbers.set(e.id, ++czIndex);
+    else if (e.sourceCzId) attached.set(e.sourceCzId, e);
+  }
+  const rows = [];
+  for (const e of r.events) {
+    if (e.type === "cz") {
+      rows.push(`CZ #${czNumbers.get(e.id)}：実G ${e.games}G / 液晶G ${e.lcdGames === null ? "未記録" : e.lcdGames + "G"} / 結果 ${label[e.outcome]}`);
+      const at = attached.get(e.id);
+      if (at) rows.push(`  └ AT終了：表示獲得 ${at.coins}枚 / CZ #${czNumbers.get(e.id)}経由`);
+    } else if (!e.sourceCzId) {
+      rows.push(`AT終了：表示獲得 ${e.coins}枚 / 契機その他/不明`);
     }
-    const origin=e.sourceCzId ? `CZ #${czNumbers.get(e.sourceCzId)}経由` : "契機その他/不明";
-    return `${index+1}. AT終了：表示獲得${e.coins}枚 / ${origin}`;
-  });
+  }
   const val = n => n===null?"データなし":n.toFixed(1);
   return [
     "【L東京喰種 実戦入力データ】",
@@ -116,7 +123,8 @@ export function buildAiText(record) {
     ...(rows.length?rows:["記録なし"]),
     "",
     "【入力定義・注意】",
-    "CZのG数＝前の記録起点からそのCZ当選までの通常時消化G（CZ・AT中は含まず）。",
+    "実G＝データカウンター側の実消化G数。液晶G＝スイカ加算込みの液晶右下のCZ間ゲーム数。混同しないでください。",
+    "CZの実G＝前の記録起点からそのCZ当選までの通常時消化G（CZ・AT中は含まず）。",
     "途中着席・記録漏れ・最後の未記録区間があり得るため、上記G合計は台の総回転数や完全なCZ当選分母とは限りません。",
     "AT獲得枚数＝AT終了画面等の表示獲得枚数で、差枚ではありません。その他/不明は直撃確定を意味しません。",
     "",
