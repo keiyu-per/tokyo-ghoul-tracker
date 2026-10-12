@@ -34,12 +34,17 @@
     <section class="panel entry">
       <div class="panel-head"><h2><span class="step">01</span> CZを記録</h2><span class="chip">NORMAL → CZ</span></div>
       <form id="czForm" novalidate>
-        <label class="field-label" for="czGames">CZ当選までの通常G</label>
+        <label class="field-label" for="czGames">CZ当選までの実ゲーム数（必須）</label>
         <div class="input-unit">
           <input id="czGames" name="games" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9]*" placeholder="例：225" aria-describedby="czHint" required>
           <span>G</span>
         </div>
-        <p class="help" id="czHint">直前の記録起点からCZ当選まで。CZ中・AT中は含めません。</p>
+        <p class="help" id="czHint">データカウンター側の実消化Gを入力。スイカで増えた液晶Gは含めません。</p>
+        <label class="field-label" for="lcdGames">液晶右下のG数（任意・スイカ加算込み）</label>
+        <div class="input-unit">
+          <input id="lcdGames" name="lcdGames" type="text" inputmode="numeric" autocomplete="off" pattern="[0-9]*" placeholder="例：320">
+          <span>G</span>
+        </div>
         <label class="field-label" for="czOutcome">CZの結果</label>
         <div class="segmented" role="group" aria-label="CZの結果">
           <button class="outcome active" data-outcome="pending" type="button" aria-pressed="true">未確定</button>
